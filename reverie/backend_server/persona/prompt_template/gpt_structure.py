@@ -6,12 +6,16 @@ Description: Wrapper functions for calling OpenAI APIs.
 """
 import json
 import random
-import openai
+from openai import OpenAI
 import time 
-
 from utils import *
 
-openai.api_key = openai_api_key
+# 创建OpenAI客户端实例，支持自定义base_url
+# 兼容千问等其他模型（只需修改utils.py中的openai_base_url即可）
+client = OpenAI(
+    api_key=openai_api_key,
+    base_url=openai_base_url
+)
 
 def temp_sleep(seconds=0.1):
   time.sleep(seconds)
@@ -19,11 +23,15 @@ def temp_sleep(seconds=0.1):
 def ChatGPT_single_request(prompt): 
   temp_sleep()
 
-  completion = openai.ChatCompletion.create(
-    model="gpt-3.5-turbo", 
-    messages=[{"role": "user", "content": prompt}]
-  )
-  return completion["choices"][0]["message"]["content"]
+  try:
+    completion = client.chat.completions.create(
+      model="qwen-flash",  # 千问快速模型
+      messages=[{"role": "user", "content": prompt}]
+    )
+    return completion.choices[0].message.content
+  except Exception as e:
+    print(f"ChatGPT_single_request ERROR: {e}")
+    return "ChatGPT ERROR"
 
 
 # ============================================================================
@@ -45,14 +53,14 @@ def GPT4_request(prompt):
   temp_sleep()
 
   try: 
-    completion = openai.ChatCompletion.create(
-    model="gpt-4", 
-    messages=[{"role": "user", "content": prompt}]
+    completion = client.chat.completions.create(
+      model="qwen-flash",  # 千问快速模型
+      messages=[{"role": "user", "content": prompt}]
     )
-    return completion["choices"][0]["message"]["content"]
+    return completion.choices[0].message.content
   
-  except: 
-    print ("ChatGPT ERROR")
+  except Exception as e: 
+    print(f"GPT4_request ERROR: {e}")
     return "ChatGPT ERROR"
 
 
@@ -70,14 +78,14 @@ def ChatGPT_request(prompt):
   """
   # temp_sleep()
   try: 
-    completion = openai.ChatCompletion.create(
-    model="gpt-3.5-turbo", 
-    messages=[{"role": "user", "content": prompt}]
+    completion = client.chat.completions.create(
+      model="qwen-flash",  # 千问快速模型
+      messages=[{"role": "user", "content": prompt}]
     )
-    return completion["choices"][0]["message"]["content"]
+    return completion.choices[0].message.content
   
-  except: 
-    print ("ChatGPT ERROR")
+  except Exception as e: 
+    print(f"ChatGPT_request ERROR: {e}")
     return "ChatGPT ERROR"
 
 
@@ -208,7 +216,8 @@ def GPT_request(prompt, gpt_parameter):
   """
   temp_sleep()
   try: 
-    response = openai.Completion.create(
+    # 使用新版API的completions接口
+    response = client.completions.create(
                 model=gpt_parameter["engine"],
                 prompt=prompt,
                 temperature=gpt_parameter["temperature"],
@@ -219,8 +228,8 @@ def GPT_request(prompt, gpt_parameter):
                 stream=gpt_parameter["stream"],
                 stop=gpt_parameter["stop"],)
     return response.choices[0].text
-  except: 
-    print ("TOKEN LIMIT EXCEEDED")
+  except Exception as e: 
+    print(f"TOKEN LIMIT EXCEEDED: {e}")
     return "TOKEN LIMIT EXCEEDED"
 
 
@@ -273,12 +282,20 @@ def safe_generate_response(prompt,
   return fail_safe_response
 
 
-def get_embedding(text, model="text-embedding-ada-002"):
+def get_embedding(text, model="text-embedding-v4"):
   text = text.replace("\n", " ")
   if not text: 
     text = "this is blank"
-  return openai.Embedding.create(
-          input=[text], model=model)['data'][0]['embedding']
+  try:
+    response = client.embeddings.create(
+        input=[text], 
+        model=model
+    )
+    return response.data[0].embedding
+  except Exception as e:
+    print(f"get_embedding ERROR: {e}")
+    # 返回一个默认的空向量，维度1024是text-embedding-v4的默认维度
+    return [0.0] * 1024
 
 
 if __name__ == '__main__':
