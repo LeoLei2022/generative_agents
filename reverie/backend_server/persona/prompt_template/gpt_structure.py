@@ -217,9 +217,12 @@ def GPT_request(prompt, gpt_parameter):
   temp_sleep()
   try: 
     # 使用新版API的completions接口
-    response = client.completions.create(
+    response = client.chat.completions.create(
                 model=gpt_parameter["engine"],
-                prompt=prompt,
+                # 按照新版OpenAI兼容API，messages参数用于对话历史，prompt参数已废弃
+                messages=[
+                    {"role": "user", "content": prompt}
+                ],
                 temperature=gpt_parameter["temperature"],
                 max_tokens=gpt_parameter["max_tokens"],
                 top_p=gpt_parameter["top_p"],
@@ -227,7 +230,9 @@ def GPT_request(prompt, gpt_parameter):
                 presence_penalty=gpt_parameter["presence_penalty"],
                 stream=gpt_parameter["stream"],
                 stop=gpt_parameter["stop"],)
-    return response.choices[0].text
+
+    print(response.choices[0].message.content)
+    return response.choices[0].message.content
   except Exception as e: 
     print(f"TOKEN LIMIT EXCEEDED: {e}")
     return "TOKEN LIMIT EXCEEDED"
@@ -299,7 +304,7 @@ def get_embedding(text, model="text-embedding-v4"):
 
 
 if __name__ == '__main__':
-  gpt_parameter = {"engine": "text-davinci-003", "max_tokens": 50, 
+  gpt_parameter = {"engine": "qwen-flash", "max_tokens": 50, 
                    "temperature": 0, "top_p": 1, "stream": False,
                    "frequency_penalty": 0, "presence_penalty": 0, 
                    "stop": ['"']}
